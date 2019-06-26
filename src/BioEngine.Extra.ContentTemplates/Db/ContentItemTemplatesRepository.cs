@@ -1,31 +1,51 @@
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using BioEngine.Core.Abstractions;
+using BioEngine.Core.DB;
 using BioEngine.Core.Entities;
 using BioEngine.Core.Repository;
 using BioEngine.Extra.ContentTemplates.Entities;
+using Newtonsoft.Json;
 
 namespace BioEngine.Extra.ContentTemplates.Db
 {
     public class ContentItemTemplatesRepository : BioRepository<ContentItemTemplate>
     {
-        public ContentItemTemplatesRepository(BioRepositoryContext<ContentItemTemplate> repositoryContext) : base(
+        private readonly BioEntitiesManager _entitiesManager;
+
+        public ContentItemTemplatesRepository(BioRepositoryContext<ContentItemTemplate> repositoryContext,
+            BioEntitiesManager entitiesManager) : base(
             repositoryContext)
         {
+            _entitiesManager = entitiesManager;
         }
 
         public Task<(ContentItemTemplate[] items, int itemsCount)> GetTemplatesAsync<TContent>()
             where TContent : ContentItem
         {
             return GetAllAsync(
-                templates => templates.Where(t => t.ContentType == typeof(TContent).FullName));
+                templates => templates.Where(t => t.ContentType == _entitiesManager.GetKey<TContent>()));
         }
 
         public async Task<ContentItemTemplate> CreateTemplateAsync<TContent, TContentData>(TContent content)
             where TContent : ContentItem<TContentData> where TContentData : ITypedData, new()
         {
-            var template = new ContentItemTemplate {Title = content.Title, AuthorId = content.AuthorId,};
-            template.SetItem<TContent, TContentData>(content);
+            var template = new ContentItemTemplate
+            {
+                Title = content.Title,
+                AuthorId = content.AuthorId,
+                Data = new ContentItemTemplateData
+                {
+                    Blocks = content.Blocks,
+                    Title = content.Title,
+                    Url = content.Url,
+                    Data = JsonConvert.SerializeObject(content.Data)
+                },
+                ContentType = _entitiesManager.GetKey(content),
+                TagIds = content.TagIds,
+                SectionIds = content.SectionIds,
+            };
 
             var result = await AddAsync(template);
             if (!result.IsSuccess)
@@ -45,13 +65,27 @@ namespace BioEngine.Extra.ContentTemplates.Db
                 throw new ArgumentException(nameof(template));
             }
 
-            if (template.ContentType != typeof(TContent).FullName)
+            var key = _entitiesManager.GetKey<TContent>();
+            if (template.ContentType != key)
             {
                 throw new Exception(
-                    $"Can't create {typeof(TContent).FullName} from template for {template.ContentType}");
+                    $"Can't create {key} from template for {template.ContentType}");
             }
 
-            var content = template.GetItem<TContent, TContentData>();
+            var content = Activator.CreateInstance<TContent>();
+            content.Blocks = new List<ContentBlock>();
+            foreach (var contentBlock in template.Data.Blocks)
+            {
+                contentBlock.Id = Guid.NewGuid();
+                contentBlock.ContentId = Guid.Empty;
+                content.Blocks.Add(contentBlock);
+            }
+
+            content.Url = template.Data.Url;
+            content.Title = template.Data.Title;
+            content.TagIds = template.TagIds;
+            content.SectionIds = template.SectionIds;
+            content.Data = JsonConvert.DeserializeObject<TContentData>(template.Data.Data);
             content.DateAdded = DateTimeOffset.UtcNow;
             content.DateUpdated = DateTimeOffset.UtcNow;
 
