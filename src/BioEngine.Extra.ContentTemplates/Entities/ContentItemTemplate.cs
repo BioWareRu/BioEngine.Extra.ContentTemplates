@@ -15,7 +15,7 @@ namespace BioEngine.Extra.ContentTemplates.Entities
         [Required] public string ContentType { get; set; }
         [Required] public Guid[] SectionIds { get; set; } = new Guid[0];
         [Required] public Guid[] TagIds { get; set; } = new Guid[0];
-        [Required] public virtual int AuthorId { get; set; }
+        [Required] public virtual string AuthorId { get; set; }
 
         [Column(TypeName = "jsonb")]
         [Required]
