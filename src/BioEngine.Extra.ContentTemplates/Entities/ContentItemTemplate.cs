@@ -12,6 +12,7 @@ namespace BioEngine.Extra.ContentTemplates.Entities
     [Entity("contentitemtemplate")]
     public class ContentItemTemplate : BaseEntity
     {
+        [Required] public string Title { get; set; }
         [Required] public string ContentType { get; set; }
         [Required] public Guid[] SectionIds { get; set; } = new Guid[0];
         [Required] public Guid[] TagIds { get; set; } = new Guid[0];
