@@ -27,7 +27,7 @@ namespace BioEngine.Extra.ContentTemplates.Entities
 
     public class ContentItemTemplateData
     {
-        public List<ContentBlock> Blocks { get; set; }
+        public List<ContentBlock> Blocks { get; set; } = new List<ContentBlock>();
         public string Url { get; set; }
         public string Title { get; set; }
         public string Data { get; set; }
